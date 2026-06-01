@@ -30,6 +30,7 @@
 
 #define PCA9548_CHANNEL_COUNT 8
 #define PCA9546_CHANNEL_COUNT 4
+#define PCA9544_CHANNEL_COUNT 4
 
 /*
  * struct Pca954xState - The pca954x state object.
@@ -51,11 +52,15 @@ typedef struct Pca954xState {
 /*
  * struct Pca954xClass - The pca954x class object.
  * @nchans: The number of i2c channels this device has.
+ * @indexed: If true, use PCA9544-style channel selection (bit 2 = enable,
+ *           bits [1:0] = channel index).  If false, use PCA9546-style
+ *           bitmask (bit N enables channel N).
  */
 typedef struct Pca954xClass {
     SMBusDeviceClass parent;
 
     uint8_t nchans;
+    bool    indexed;
 } Pca954xClass;
 
 #define TYPE_PCA954X "pca954x"
@@ -99,20 +104,33 @@ static bool pca954x_match(I2CSlave *candidate, uint8_t address,
     return broadcast;
 }
 
-static void pca954x_enable_channel(Pca954xState *s, uint8_t enable_mask)
+static void pca954x_enable_channel(Pca954xState *s, uint8_t control)
 {
     Pca954xClass *mc = PCA954X_GET_CLASS(s);
     int i;
 
-    /*
-     * For each channel, check if their bit is set in enable_mask and if yes,
-     * enable it, otherwise disable, hide it.
-     */
-    for (i = 0; i < mc->nchans; i++) {
-        if (enable_mask & (1 << i)) {
-            s->enabled[i] = true;
-        } else {
-            s->enabled[i] = false;
+    if (mc->indexed) {
+        /*
+         * PCA9544-style: bit 2 = enable, bits [1:0] = channel index.
+         * Only one channel can be active at a time.
+         */
+        bool enable = (control >> 2u) & 1u;
+        uint8_t channel = control & 0x03u;
+
+        for (i = 0; i < mc->nchans; i++) {
+            s->enabled[i] = enable && (i == channel);
+        }
+    } else {
+        /*
+         * PCA9546/PCA9548-style: bitmask.
+         * Each bit independently enables/disables the corresponding channel.
+         */
+        for (i = 0; i < mc->nchans; i++) {
+            if (control & (1u << i)) {
+                s->enabled[i] = true;
+            } else {
+                s->enabled[i] = false;
+            }
         }
     }
 }
@@ -170,6 +188,13 @@ I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel)
 
     g_assert(channel < pc->nchans);
     return pca954x->bus[channel];
+}
+
+static void pca9544_class_init(ObjectClass *klass, const void *data)
+{
+    Pca954xClass *s = PCA954X_CLASS(klass);
+    s->nchans = PCA9544_CHANNEL_COUNT;
+    s->indexed = true;
 }
 
 static void pca9546_class_init(ObjectClass *klass, const void *data)
@@ -244,6 +269,11 @@ static const TypeInfo pca954x_info[] = {
         .class_size    = sizeof(Pca954xClass),
         .class_init    = pca954x_class_init,
         .abstract      = true,
+    },
+    {
+        .name          = TYPE_PCA9544,
+        .parent        = TYPE_PCA954X,
+        .class_init    = pca9544_class_init,
     },
     {
         .name          = TYPE_PCA9546,
