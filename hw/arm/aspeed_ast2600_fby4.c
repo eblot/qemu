@@ -162,7 +162,7 @@ static void fby4_i2c_init_fanboard(I2CSlave *fan_mux, size_t eepromSize)
         I2CBus *bus = pca954x_i2c_get_bus(fan_mux, i);
 
         /* ti,adc128d818 @ 0x1f    (adc) */
-        /* TODO */
+        i2c_slave_create_simple(bus, "adc128d818", 0x1f);
 
         /* maxim,max31790 @ 0x20   (pwm) */
         i2c_slave_create_simple(bus, "max31790", 0x20);
