@@ -4,11 +4,15 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import re
+import time
+
 from qemu_test import Asset
 from qemu_test import wait_for_console_pattern
 from aspeed import AspeedTest
 
 from qemu_test import wait_for_console_pattern
+from qemu_test import exec_command
 from qemu_test import exec_command_and_wait_for_pattern
 
 class YosemiteV4Machine(AspeedTest):
@@ -16,6 +20,8 @@ class YosemiteV4Machine(AspeedTest):
     ASSET_YOSEMITE_V4_FLASH = Asset(
         'https://github.com/legoater/qemu-aspeed-boot/raw/refs/heads/master/images/yosemite4-bmc/openbmc-20260505132843/obmc-phosphor-image-yosemite4-20260505132843.static.mtd.xz',
         'dff6946363b41f952b15cfc3156482b89fcfc1b0ecfc3ec8b3ed496a5f001ef9')
+
+    ADC128D818_HWMON = '/sys/bus/i2c/devices/30-001f/hwmon/hwmon*'
 
     def do_test_arm_aspeed_openbmc_no_network(self, machine, image, uboot,
                                    cpu_id, soc):
@@ -67,6 +73,47 @@ class YosemiteV4Machine(AspeedTest):
             "cat /sys/bus/i2c/devices/30-0033/iio:device*/in_voltage0_raw", "4095");
         exec_command_and_wait_for_pattern(self,
             "cat /sys/bus/i2c/devices/30-0033/iio:device*/in_voltage_scale", "0.500000000");
+
+        # ADC128D818 test
+        exec_command_and_wait_for_pattern(self,
+            f"cat {self.ADC128D818_HWMON}/name", "adc128d818");
+
+        adc = self.find_adc128d818_qom_path()
+        for ch0_mv, ch1_mv in ((108, 2000), (1280, 500)):
+            self.vm.cmd('qom-set', path=adc, property='ain0', value=ch0_mv)
+            self.vm.cmd('qom-set', path=adc, property='ain1', value=ch1_mv)
+            self.wait_adc128d818_value('in0_input', ch0_mv)
+            self.wait_adc128d818_value('in1_input', ch1_mv)
+
+        self.assertEqual(self.read_adc128d818_value('in0_min'), 0)
+        self.assertEqual(self.read_adc128d818_value('in0_max'), 2551)
+
+    def find_adc128d818_qom_path(self):
+        unattached = '/machine/unattached'
+        devices = [child['name'] for child in
+                   self.vm.cmd('qom-list', path=unattached)
+                   if 'adc128d818' in child['type']]
+        devices.sort(key=lambda name: int(name[len('device['):-1]))
+        return f'{unattached}/{devices[0]}'
+
+    def read_adc128d818_value(self, attr):
+        # split the marker via $m so it only appears in the output, not echo
+        exec_command(self,
+            f'm=END; cat {self.ADC128D818_HWMON}/{attr}; echo "ADC$m"')
+        out = wait_for_console_pattern(self, 'ADCEND')
+        match = re.search(rb'(-?\d+)\s+ADCEND', out)
+        self.assertIsNotNone(match, f'could not read {attr}')
+        return int(match.group(1))
+
+    def wait_adc128d818_value(self, attr, expected, timeout=20):
+        deadline = time.monotonic() + timeout
+        value = None
+        while time.monotonic() < deadline:
+            value = self.read_adc128d818_value(attr)
+            if value == expected:
+                return
+            time.sleep(2)
+        self.fail(f'{attr} did not reach {expected} (last read {value})')
 
     def test_arm_ast2600_yosemitev4_openbmc(self):
         image_path = self.uncompress(self.ASSET_YOSEMITE_V4_FLASH)
