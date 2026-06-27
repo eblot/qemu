@@ -166,13 +166,16 @@ bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
 I2CSlave *i2c_slave_new(const char *name, uint8_t addr);
 
 /**
- * Create and realize an I2C slave device on the heap.
+ * Create and realize an I2C slave device on the heap, add the device as a
+ * child of its parent bus.
+ *
  * @bus: I2C bus to put it on
  * @name: I2C slave device type name
  * @addr: I2C address of the slave when put on a bus
  *
  * Create the device state structure, initialize it, put it on the
- * specified @bus, and drop the reference to it (the device is realized).
+ * specified @bus, parent it, and drop the reference to it (the device is
+ * realized).
  */
 I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr);
 
