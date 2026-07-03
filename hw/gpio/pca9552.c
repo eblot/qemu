@@ -535,6 +535,11 @@ static const TypeInfo pca955x_types[] = {
         .name          = TYPE_PCA9535,
         .parent        = TYPE_PCA955X,
         .class_init    = pca9535_class_init,
+    },
+    {
+        .name          = TYPE_PCA9555,
+        .parent        = TYPE_PCA955X,
+        .class_init    = pca9535_class_init,
     }
 };
 
