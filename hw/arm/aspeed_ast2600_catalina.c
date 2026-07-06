@@ -16,6 +16,7 @@
 #include "hw/gpio/pca9554.h"
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/sensor/tmp105.h"
+#include "hw/sensor/xdp710.h"
 
 /* Catalina hardware value */
 #define CATALINA_BMC_HW_STRAP1 0x00002002
@@ -535,6 +536,12 @@ static void catalina_bmc_i2c_init(AspeedMachineState *bmc)
     /* ina238@41 - no model */
     /* ina238@43 - no model */
     /* i2c1mux0ch4 */
+    /* power-monitor@13 - xdp710 */
+    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 4),
+                            TYPE_XDP710, 0x13);
+    /* power-monitor@1c - xdp710 */
+    i2c_slave_create_simple(pca954x_i2c_get_bus(i2c_mux, 4),
+                            TYPE_XDP710, 0x1c);
     /* ltc4287@42 - no model */
     /* ltc4287@43 - no model */
 
