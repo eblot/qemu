@@ -22,6 +22,11 @@ class CatalinaMachine(FacebookAspeedTest):
     # io_expander0: pca9555@20 on i2c2, a 16-bit expander directly on the bus.
     IOEXP0_QOM = "/machine/soc/i2c/bus[2]/aspeed.i2c.bus.2/0x20"
     IOEXP0_GPIODETECT = r"\[2-0020\]"
+    # io_expander5: pca9554@27 behind pca9548@70 channel 6 on i2c1, an 8-bit
+    # expander. Another expander sits at address 0x27 (pca9555@27 on i2c2), so
+    # it is matched on both its address and its line count.
+    IOEXP5_QOM = "/machine/soc/i2c/bus[1]/aspeed.i2c.bus.1/0x70/i2c.6/0x27"
+    IOEXP5_GPIODETECT = r"-0027] \(8 lines\)"
 
     def test_arm_ast2600_catalina_openbmc(self):
         image_path = self.uncompress(self.ASSET_CATALINA_FLASH)
@@ -35,6 +40,8 @@ class CatalinaMachine(FacebookAspeedTest):
 
         # pca9555@20 spans two 8-bit ports (pins 0-7 and 8-15).
         self.check_ioexp(self.IOEXP0_QOM, self.IOEXP0_GPIODETECT, (0, 7, 8, 15))
+        # pca9554@27 is a single 8-bit port.
+        self.check_ioexp(self.IOEXP5_QOM, self.IOEXP5_GPIODETECT, (0, 3, 7))
 
     def check_ioexp(self, qom, gpiodetect, pins):
         # The guest uses these expander lines as inputs (with pull-ups), so
