@@ -14,6 +14,7 @@
 #include "hw/gpio/pca9552.h"
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/rtc/ds1338.h"
+#include "hw/sensor/ina230.h"
 #include "hw/sensor/tmp105.h"
 
 /*
@@ -69,7 +70,9 @@ static void minerva_bmc_i2c_init(AspeedMachineState *bmc)
     }
 
     /* &i2c0 */
-    /* power-monitor@40/41 - ti,ina230 (no model) */
+    /* power-monitor@40/41 - ti,ina230 */
+    i2c_slave_create_simple(i2c[0], TYPE_INA230, 0x40);
+    i2c_slave_create_simple(i2c[0], TYPE_INA230, 0x41);
     /* power-monitor@44 - lltc,ltc4287 (no model) */
     /* power-monitor@43 - infineon,xdp710 (no model) */
     /* leds_gpio: gpio@19 - pca9555 */
