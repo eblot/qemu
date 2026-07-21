@@ -25,10 +25,6 @@
 #define MINERVA_BMC_HW_STRAP2 0x00000800
 #define MINERVA_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
 
-/* Guard the alias against the TYPE_TMP75 hw/sensor/tmp105.h defines. */
-#undef TYPE_TMP75
-#define TYPE_TMP75 TYPE_TMP105
-
 /*
  * Fan Controller Board (FCB).  The Minerva BMC device tree describes six
  * identical FCBs, each hanging off one channel of the PCA9548 on i2c2.
