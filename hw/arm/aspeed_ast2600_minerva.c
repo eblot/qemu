@@ -15,6 +15,7 @@
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/rtc/ds1338.h"
 #include "hw/sensor/ina230.h"
+#include "hw/sensor/ina238.h"
 #include "hw/sensor/tmp105.h"
 
 /*
@@ -37,7 +38,11 @@ static void minerva_fcb_i2c_init(I2CBus *bus)
     /* eeprom@50 - atmel,24c128 */
     at24c_eeprom_init(bus, 0x50, 16 * KiB);
     /* pwm@5e - maxim,max31790 (no model) */
-    /* power-sensor@40/41/44/45 - ti,ina238 (no model) */
+    /* power-sensor@40/41/44/45 - ti,ina238 */
+    i2c_slave_create_simple(bus, TYPE_INA238, 0x40);
+    i2c_slave_create_simple(bus, TYPE_INA238, 0x41);
+    i2c_slave_create_simple(bus, TYPE_INA238, 0x44);
+    i2c_slave_create_simple(bus, TYPE_INA238, 0x45);
     /* temperature-sensor@4b - tmp75 */
     i2c_slave_create_simple(bus, TYPE_TMP75, 0x4b);
     /* gpio@11/12/13/17 - pca9555 */
