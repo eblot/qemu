@@ -13,6 +13,7 @@
 #include "hw/arm/aspeed_soc.h"
 #include "hw/misc/led.h"
 #include "hw/sensor/tmp105.h"
+#include "hw/sensor/tmp421.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/gpio/pca9552.h"
 #include "hw/rtc/ds1338.h"
@@ -67,11 +68,13 @@ static void witherspoon_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 3), "dps310", 0x76);
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 3), "max31785", 0x52);
-    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4), "tmp423", 0x4c);
+    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4),
+                            TYPE_TMP423, 0x4c);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4), "ir35221", 0x70);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4), "ir35221", 0x71);
 
-    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5), "tmp423", 0x4c);
+    i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5),
+                            TYPE_TMP423, 0x4c);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5), "ir35221", 0x70);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5), "ir35221", 0x71);
 
