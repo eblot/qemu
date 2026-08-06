@@ -69,6 +69,7 @@ arm_common_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
   'aspeed_ast2600_rainier.c',
   'aspeed_ast2600_santabarbara.c',
   'aspeed_ast2600_sanmiguel.c',
+  'aspeed_ast2600_yosemite5.c',
   'aspeed_ast10x0.c',
   'aspeed_ast10x0_evb.c',
   'aspeed_ast1040.c',
