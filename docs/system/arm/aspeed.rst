@@ -35,6 +35,7 @@ AST2600 SoC based machines :
 - ``fby35-bmc``            Facebook fby35 BMC
 - ``catalina-bmc``         Facebook Catalina BMC
 - ``clemente-bmc``         Facebook Clemente BMC
+- ``santabarbara-bmc``     Facebook Santabarbara BMC
 - ``sanmiguel-bmc``        Facebook SanMiguel BMC
 - ``anacapa-bmc``          Facebook Anacapa BMC
 - ``minerva-bmc``          Facebook Minerva BMC
