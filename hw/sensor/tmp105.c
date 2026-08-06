@@ -1,5 +1,5 @@
 /*
- * Texas Instruments TMP105/TMP75/TMP175/LM75B temperature sensor.
+ * Texas Instruments TMP105/TMP75/TMP175/TMP1075/LM75B temperature sensor.
  *
  * Copyright (C) 2008 Nokia Corporation
  * Written by Andrzej Zaborowski <andrew@openedhand.com>
@@ -76,6 +76,11 @@ struct TMP105State {
  * @fixed_res: converter resolution field pinned by the device, or -1 when it is
  * software-selectable.
  * @limit_lsb_mask: low-byte mask applied to the T_LOW/T_HIGH limit registers.
+ * @config16: the Config register is 16 bits wide over I2C. Its control bits
+ * occupy the upper byte (mirroring the 8-bit layout); the reserved lower byte
+ * reads back as 0xff. Single-byte access stays compatible with the 8-bit parts.
+ * @die_id: value of the read-only Device ID register, or 0 when the device has
+ * none.
  */
 struct TMP105Class {
     I2CSlaveClass parent_class;
@@ -84,6 +89,8 @@ struct TMP105Class {
     int8_t fixed_res;
     uint8_t limit_lsb_mask;
     bool tm_change_clears_alert;
+    bool config16;
+    uint16_t die_id;
 };
 
 FIELD(CONFIG, SHUTDOWN_MODE,        0, 1)
@@ -185,6 +192,13 @@ static void tmp105_read(TMP105State *s)
         tmp105_interrupt_update(s);
     }
 
+    if (tc->die_id && (s->pointer & 0x0f) == TMP105_REG_DIE_ID) {
+        s->buf[s->len++] = tc->die_id >> 8;
+        s->buf[s->len++] = tc->die_id & 0xff;
+        trace_tmp105_read(s->parent_obj.address, s->pointer);
+        return;
+    }
+
     switch (s->pointer & 3) {
     case TMP105_REG_TEMPERATURE:
         res = tc->fixed_res >= 0 ? tc->fixed_res :
@@ -196,6 +210,9 @@ static void tmp105_read(TMP105State *s)
 
     case TMP105_REG_CONFIG:
         s->buf[s->len++] = s->config;
+        if (tc->config16) {
+            s->buf[s->len++] = 0xff; /* reserved lower byte */
+        }
         break;
 
     case TMP105_REG_T_LOW:
@@ -220,11 +237,23 @@ static void tmp105_write(TMP105State *s)
 
     trace_tmp105_write(s->parent_obj.address, s->pointer);
 
+    if (tc->die_id && (s->pointer & 0x0f) == TMP105_REG_DIE_ID) {
+        return; /* Device ID register is read-only */
+    }
+
     switch (s->pointer & 3) {
     case TMP105_REG_TEMPERATURE:
         break;
 
     case TMP105_REG_CONFIG:
+        /*
+         * The control bits live in the first data byte for every variant (the
+         * upper byte of the TMP1075 16-bit register); apply them once and treat
+         * any following byte as the reserved low byte.
+         */
+        if (s->len != 2) {
+            break;
+        }
         config = s->buf[0] & tc->config_wmask;
         if (FIELD_EX8(config & ~s->config, CONFIG, SHUTDOWN_MODE)) {
             trace_tmp105_write_shutdown(s->parent_obj.address);
@@ -447,6 +476,8 @@ static void tmp105_class_init(ObjectClass *klass, const void *data)
     tc->fixed_res = -1;
     tc->limit_lsb_mask = 0xf0;
     tc->tm_change_clears_alert = false;
+    tc->config16 = false;
+    tc->die_id = 0;
 }
 
 static void tmp175_class_init(ObjectClass *klass, const void *data)
@@ -482,6 +513,25 @@ static void lm75b_class_init(ObjectClass *klass, const void *data)
     tc->tm_change_clears_alert = false;
 }
 
+/*
+ * The TMP1075 fixes the converter at 12 bits (its R1:R0 bits select the
+ * conversion rate instead, which this instantaneous model does not track), uses
+ * the TMP75 fault-queue mapping, exposes a 16-bit Config register and answers
+ * the Device ID register with 0x7500.
+ */
+static void tmp1075_class_init(ObjectClass *klass, const void *data)
+{
+    TMP105Class *tc = TMP105_CLASS(klass);
+
+    tc->faultq = tmp105_faultq[1];
+    tc->config_wmask = 0xff;
+    tc->fixed_res = 3;
+    tc->limit_lsb_mask = 0xf0;
+    tc->tm_change_clears_alert = true;
+    tc->config16 = true;
+    tc->die_id = TMP1075_DEVICE_ID;
+}
+
 static const TypeInfo tmp105_types[] = {
     {
         .name          = TYPE_TMP105,
@@ -505,6 +555,11 @@ static const TypeInfo tmp105_types[] = {
         .name          = TYPE_LM75B,
         .parent        = TYPE_TMP105,
         .class_init    = lm75b_class_init,
+    },
+    {
+        .name          = TYPE_TMP1075,
+        .parent        = TYPE_TMP105,
+        .class_init    = tmp1075_class_init,
     },
 };
 
