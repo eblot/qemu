@@ -14,5 +14,6 @@
 #define TYPE_PCA9552 "pca9552"
 #define TYPE_PCA9535 "pca9535"
 #define TYPE_PCA9555 "pca9555"
+#define TYPE_PCA9539 "pca9539"
 
 #endif
