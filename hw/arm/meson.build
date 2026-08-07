@@ -65,6 +65,7 @@ arm_common_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
   'aspeed_ast2600_fby35.c',
   'aspeed_ast2600_fuji.c',
   'aspeed_ast2600_gb200nvl.c',
+  'aspeed_ast2600_harma.c',
   'aspeed_ast2600_minerva.c',
   'aspeed_ast2600_rainier.c',
   'aspeed_ast2600_santabarbara.c',
