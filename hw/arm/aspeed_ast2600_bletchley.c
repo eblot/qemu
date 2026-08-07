@@ -4,17 +4,27 @@
  * Copyright 2016 IBM Corp.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Current limitations: the following devices from the device tree have no
+ * QEMU model and are therefore not emulated:
+ *   - mps,mp5023 power monitors
+ *   - fcs,fusb302 USB Type-C PD controllers
+ *   - adi,adm1278 hot-swap controller
+ *   - infineon,slb9670 TPM (SPI)
+ *   - ipmb-dev IPMB interface
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
 #include "hw/gpio/pca9552.h"
+#include "hw/gpio/pca9554.h"
 #include "hw/nvram/eeprom_at24c.h"
 #include "hw/rtc/ds1338.h"
+#include "hw/sensor/ina230.h"
 #include "hw/sensor/tmp421.h"
+
 /* Bletchley hardware value */
 #define BLETCHLEY_BMC_HW_STRAP1 0x00002000
 #define BLETCHLEY_BMC_HW_STRAP2 0x00000801
@@ -33,30 +43,30 @@ static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
 
     /* Bus 0 - 5 all have the same config. */
     for (int i = 0; i < 6; i++) {
-        /* Missing model: ti,ina230 @ 0x45 */
+        i2c_slave_create_simple(i2c[i], TYPE_INA230, 0x45);
         /* Missing model: mps,mp5023 @ 0x40 */
         i2c_slave_create_simple(i2c[i], TYPE_TMP421, 0x4f);
-        /* Missing model: nxp,pca9539 @ 0x76, but PCA9552 works enough */
-        i2c_slave_create_simple(i2c[i], TYPE_PCA9552, 0x76);
+        i2c_slave_create_simple(i2c[i], TYPE_PCA9536, 0x41);
+        i2c_slave_create_simple(i2c[i], TYPE_PCA9539, 0x76);
         i2c_slave_create_simple(i2c[i], TYPE_PCA9552, 0x67);
         /* Missing model: fsc,fusb302 @ 0x22 */
+        at24c_eeprom_init(i2c[i], 0x54, 8 * KiB);
     }
 
     /* Bus 6 */
-    at24c_eeprom_init(i2c[6], 0x56, 65536);
+    at24c_eeprom_init(i2c[6], 0x56, 8 * KiB);
     /* Missing model: nxp,pcf85263 @ 0x51 , but ds1338 works enough */
     i2c_slave_create_simple(i2c[6], TYPE_DS1338, 0x51);
 
 
     /* Bus 7 */
-    at24c_eeprom_init(i2c[7], 0x54, 65536);
+    at24c_eeprom_init(i2c[7], 0x54, 8 * KiB);
 
     /* Bus 9 */
     i2c_slave_create_simple(i2c[9], TYPE_TMP421, 0x4f);
 
     /* Bus 10 */
     i2c_slave_create_simple(i2c[10], TYPE_TMP421, 0x4f);
-    /* Missing model: ti,hdc1080 @ 0x40 */
     i2c_slave_create_simple(i2c[10], TYPE_PCA9552, 0x67);
 
     /* Bus 12 */
@@ -64,6 +74,9 @@ static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
     i2c_slave_create_simple(i2c[12], TYPE_TMP421, 0x4c);
     i2c_slave_create_simple(i2c[12], TYPE_TMP421, 0x4d);
     i2c_slave_create_simple(i2c[12], TYPE_PCA9552, 0x67);
+
+    /* Bus 13 */
+    /* Missing model: ipmb-dev @ 0x10 */
 }
 
 static void aspeed_machine_bletchley_class_init(ObjectClass *oc,
