@@ -1,7 +1,7 @@
 /*
- * Facebook Bletchley
+ * Facebook Bletchley BMC
  *
- * Copyright 2016 IBM Corp.
+ * Copyright (c) 2022 Meta Platforms, Inc. and affiliates
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
