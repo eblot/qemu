@@ -13,7 +13,7 @@ test_arm_timeouts = {
   'aspeed_ast2600_sdk_515' : 720,
   'aspeed_ast2600_sdk_otp' : 720,
   'aspeed_anacapa' : 480,
-  'aspeed_bletchley' : 480,
+  'aspeed_bletchley' : 720,
   'aspeed_catalina' : 480,
   'aspeed_clemente' : 480,
   'aspeed_gb200nvl_bmc' : 480,

@@ -29,6 +29,13 @@ class BletchleyMachine(AspeedTest):
     TMP421_1_HWMON = "/sys/bus/i2c/devices/12-004d/hwmon/hwmon*"
     PROMPT = "root@bletchley:~#"
 
+    # Leading common-header bytes each board revision is expected to
+    # present.
+    FRU_AREA_OFFSETS = {
+        "1.0": {"7-0054": "01 00 01 07", "6-0056": "01 00 00 01"},
+        "1.5": {"7-0054": "01 00 01 08", "6-0056": "01 00 01 02"},
+    }
+
     def test_arm_ast2600_bletchley_openbmc(self):
         image_path = self.uncompress(self.ASSET_BLETCHLEY_FLASH)
 
@@ -71,6 +78,54 @@ class BletchleyMachine(AspeedTest):
                             property="temperature1", value=remote_mc)
                 self.wait_hwmon_value(hwmon, "temp1_input", local_rb)
                 self.wait_hwmon_value(hwmon, "temp2_input", remote_rb)
+
+        self.check_fru("1.0", "Bletchley Chassis Controller-Class 1",
+                       "Bletchley MP", "C01850")
+
+    def test_arm_ast2600_bletchley_v15_openbmc(self):
+        image_path = self.uncompress(self.ASSET_BLETCHLEY_FLASH)
+
+        # set_machine() must run first: the VM is created on the first
+        # self.vm access and only picks up the machine type set by then.
+        self.set_machine('bletchley-bmc')
+        self.vm.add_args('-machine', 'board-revision=1.5')
+        self.do_test_arm_aspeed_openbmc('bletchley-bmc', image=image_path,
+                                        uboot='2019.04', cpu_id='0xf00',
+                                        soc='AST2600 rev A3')
+
+        exec_command_and_wait_for_pattern(self, 'root', 'Password:')
+        exec_command_and_wait_for_pattern(self, '0penBmc', self.PROMPT)
+
+        self.check_fru("1.5", "Bletchley v1.5 Chassis Controller-Class 1",
+                       "Bletchley v1.5 MP", "9082C3")
+
+    def check_fru(self, version, cc_board, bsm_product, mac_oui):
+        cc = self.read_eeprom_strings("7-0054")
+        self.assertIn(cc_board.encode(), cc)
+        self.assertIn(mac_oui.encode(), cc)
+        self.assertIn(bsm_product.encode(),
+                      self.read_eeprom_strings("6-0056"))
+        if version == "1.0":
+            self.assertNotIn(b"v1.5", cc)
+
+        # The first four bytes of the common header are the format
+        # version and the internal-use, chassis and board area offsets,
+        # the last two in units of eight bytes. The v1.5 chassis
+        # controller holds two extra chassis custom fields, one of them
+        # the MAC address, which pushes its board area further out; the
+        # v1.5 storage module gains a chassis area the v1.0 one lacks.
+        for dev, header in self.FRU_AREA_OFFSETS[version].items():
+            self.assertIn(header.encode(), self.read_eeprom_header(dev))
+
+    def read_eeprom_strings(self, dev):
+        return exec_command_and_wait_for_pattern(
+            self, f"strings -n 4 /sys/bus/i2c/devices/{dev}/eeprom",
+            self.PROMPT)
+
+    def read_eeprom_header(self, dev):
+        return exec_command_and_wait_for_pattern(
+            self, f"hexdump -C -n 4 /sys/bus/i2c/devices/{dev}/eeprom",
+            self.PROMPT)
 
 
 if __name__ == '__main__':
