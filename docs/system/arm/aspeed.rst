@@ -40,6 +40,7 @@ AST2600 SoC based machines :
 - ``anacapa-bmc``          Facebook Anacapa BMC
 - ``minerva-bmc``          Facebook Minerva BMC
 - ``harma-bmc``            Facebook Harma BMC
+- ``ventura-bmc``          Facebook Ventura BMC
 - ``yosemite5-bmc``        Facebook Yosemite 5 BMC
 - ``gb200nvl-bmc``         Nvidia GB200nvl BMC
 
