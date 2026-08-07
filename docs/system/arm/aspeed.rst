@@ -246,6 +246,19 @@ under Linux), use :
 
   -M ast2500-evb,bmc-console=uart3
 
+Board revision option
+^^^^^^^^^^^^^^^^^^^^^
+
+The ``bletchley-bmc`` machine models two board revisions. They carry
+the same devices and differ only in their FRU content: on v1.0 the BMC
+MAC address is held in a custom field of the chassis controller board
+area, while on v1.5 it moved to that board's chassis area. The
+``board-revision`` option selects the revision and defaults to ``1.0`` :
+
+.. code-block:: bash
+
+  -M bletchley-bmc,board-revision=1.5
+
 OTP Option
 ^^^^^^^^^^
 

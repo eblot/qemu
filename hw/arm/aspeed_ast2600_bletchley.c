@@ -5,6 +5,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
+ * Two board revisions are modelled, selected with the "board-revision"
+ * machine property. They carry the same devices and differ only in their
+ * FRU content.
+ *
  * Current limitations: the following devices from the device tree have no
  * QEMU model and are therefore not emulated:
  *   - mps,mp5023 power monitors
@@ -15,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
@@ -29,6 +34,15 @@
 #define BLETCHLEY_BMC_HW_STRAP1 0x00002000
 #define BLETCHLEY_BMC_HW_STRAP2 0x00000801
 #define BLETCHLEY_BMC_RAM_SIZE ASPEED_RAM_SIZE(2 * GiB)
+
+#define TYPE_BLETCHLEY_MACHINE MACHINE_TYPE_NAME("bletchley-bmc")
+OBJECT_DECLARE_SIMPLE_TYPE(BletchleyMachineState, BLETCHLEY_MACHINE)
+
+struct BletchleyMachineState {
+    AspeedMachineState parent_obj;
+
+    bool v1_5;
+};
 
 static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
 {
@@ -79,6 +93,28 @@ static void bletchley_bmc_i2c_init(AspeedMachineState *bmc)
     /* Missing model: ipmb-dev @ 0x10 */
 }
 
+static char *bletchley_get_board_revision(Object *obj, Error **errp)
+{
+    BletchleyMachineState *bmc = BLETCHLEY_MACHINE(obj);
+
+    return g_strdup(bmc->v1_5 ? "1.5" : "1.0");
+}
+
+static void bletchley_set_board_revision(Object *obj, const char *value,
+                                         Error **errp)
+{
+    BletchleyMachineState *bmc = BLETCHLEY_MACHINE(obj);
+
+    if (!strcmp(value, "1.0")) {
+        bmc->v1_5 = false;
+    } else if (!strcmp(value, "1.5")) {
+        bmc->v1_5 = true;
+    } else {
+        error_setg(errp, "Bad value for \"board-revision\" property, "
+                   "expected \"1.0\" or \"1.5\"");
+    }
+}
+
 static void aspeed_machine_bletchley_class_init(ObjectClass *oc,
                                                 const void *data)
 {
@@ -96,12 +132,19 @@ static void aspeed_machine_bletchley_class_init(ObjectClass *oc,
     amc->i2c_init  = bletchley_bmc_i2c_init;
     mc->default_ram_size = BLETCHLEY_BMC_RAM_SIZE;
     aspeed_machine_class_init_cpus_defaults(mc);
+
+    object_class_property_add_str(oc, "board-revision",
+                                  bletchley_get_board_revision,
+                                  bletchley_set_board_revision);
+    object_class_property_set_description(oc, "board-revision",
+                           "Board revision, \"1.0\" (default) or \"1.5\"");
 }
 
 static const TypeInfo aspeed_ast2600_bletchley_types[] = {
     {
-        .name          = MACHINE_TYPE_NAME("bletchley-bmc"),
+        .name          = TYPE_BLETCHLEY_MACHINE,
         .parent        = TYPE_ASPEED_MACHINE,
+        .instance_size = sizeof(BletchleyMachineState),
         .class_init    = aspeed_machine_bletchley_class_init,
         .interfaces    = arm_machine_interfaces,
     }
