@@ -126,7 +126,12 @@ static void pca955x_display_pins_status(PCA955xState *s,
     }
 }
 
-static void pca955x_update_pin_input(PCA955xState *s)
+/*
+ * @publish_all: drive every pin, not just the ones that changed. A qemu_irq
+ * carries no state the far end can read back, so a consumer only knows what
+ * it has been told: a reset has to restate every level.
+ */
+static void pca955x_update_pin_input(PCA955xState *s, bool publish_all)
 {
     PCA955xClass *k = PCA955X_GET_CLASS(s);
     int i;
@@ -188,9 +193,8 @@ static void pca955x_update_pin_input(PCA955xState *s)
             }
         }
 
-        /* update irq state only if pin state changed */
         new_value = s->regs[input_reg] & bit_mask;
-        if (new_value != old_value) {
+        if (publish_all || new_value != old_value) {
             qemu_set_irq(s->gpio_out[i], !!new_value);
         }
     }
@@ -247,13 +251,13 @@ static void pca955x_write(PCA955xState *s, uint8_t reg, uint8_t data)
     if (k->has_led_support) {
         /* PCA9552: Update on LED selector register writes */
         if (reg >= PCA9552_LS0 && reg <= PCA9552_LS3) {
-            pca955x_update_pin_input(s);
+            pca955x_update_pin_input(s, false);
             pca955x_display_pins_status(s, pins_status);
         }
     } else {
         /* PCA9535: Update on OUTPUT, POLARITY, or CONFIG register writes */
         if (reg >= PCA9535_OUTPUT0 && reg <= PCA9535_CONFIG1) {
-            pca955x_update_pin_input(s);
+            pca955x_update_pin_input(s, false);
             pca955x_display_pins_status(s, pins_status);
         }
     }
@@ -530,7 +534,7 @@ static void pca9552_reset_hold(Object *obj, ResetType type)
     s->regs[PCA9552_LS3] = 0x55;
 
     memset(s->ext_state, PCA9552_PIN_HIZ, PCA955X_PIN_COUNT_MAX);
-    pca955x_update_pin_input(s);
+    pca955x_update_pin_input(s, true);
 
     s->pointer = 0xFF;
     s->len = 0;
@@ -550,7 +554,7 @@ static void pca9535_reset_hold(Object *obj, ResetType type)
     s->regs[PCA9535_CONFIG1] = 0xFF;  /* All pins as inputs */
 
     memset(s->ext_state, PCA9552_PIN_HIZ, PCA955X_PIN_COUNT_MAX);
-    pca955x_update_pin_input(s);
+    pca955x_update_pin_input(s, true);
 
     s->pointer = 0xFF;
     s->len = 0;
@@ -561,6 +565,7 @@ static void pca955x_initfn(Object *obj)
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
 
     assert(k->pin_count <= PCA955X_PIN_COUNT_MAX);
+
     for (int ix = 0; ix < k->pin_count; ix++) {
         char *name;
 
@@ -584,7 +589,7 @@ static void pca955x_set_ext_state(PCA955xState *s, int pin, int level)
     if (s->ext_state[pin] != level) {
         uint16_t pins_status = pca955x_pins_get_status(s);
         s->ext_state[pin] = level;
-        pca955x_update_pin_input(s);
+        pca955x_update_pin_input(s, false);
         pca955x_display_pins_status(s, pins_status);
     }
 }
